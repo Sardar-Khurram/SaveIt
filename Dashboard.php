@@ -8,9 +8,11 @@
     <link rel="stylesheet" href="assets/CSS/style.css">
     <link rel="stylesheet" href="assets/CSS/utility.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
 </head>
 
-<body>
+<body class="app-page">
 
     <?php include 'assets/includes/header.php'; ?>
 
@@ -63,13 +65,13 @@
         </section>
 
         <!-- Search and Add Section -->
-        <section class="action-section animate-slide-up">
+        <section class="action-section  animate-slide-up">
             <div class="action-row">
                 <div class="search-wrapper">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="searchInput" class="search-input" placeholder="Search files by name...">
                 </div>
-                <button class="btn btn-add" id="addFileBtn">
+                <button class="btn btn-add-alt" id="addFileBtn">
                     <i class="fas fa-plus"></i>
                     Add File
                 </button>
@@ -94,6 +96,33 @@
                         <!-- Files will be dynamically added here -->
                     </tbody>
                 </table>
+
+                <!-- Pagination Controls -->
+                <div class="pagination-wrapper" id="paginationWrapper" style="display: none;">
+                    <div class="pagination-left">
+                        <span class="pagination-label">Show</span>
+                        <select class="entries-select" id="entriesSelect">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                        <span class="pagination-label">entries</span>
+                    </div>
+                    <div class="pagination-right">
+                        <div class="pagination-info">
+                            Showing <span id="showingStart">1</span> to <span id="showingEnd">10</span> of <span id="totalEntries">0</span> entries
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="prevBtn" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div class="pagination-numbers" id="paginationNumbers"></div>
+                            <button class="pagination-btn" id="nextBtn" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Empty State -->
                 <div class="empty-state " id="emptyState">
@@ -130,61 +159,79 @@
             </div>
 
             <div class="modal-body">
-                <form id="addFileForm">
-                    <!-- File Upload Area -->
-                    <div class="upload-area" id="uploadArea">
-                        <input type="file" id="fileInput" accept="*/*" hidden>
-                        <div class="upload-content">
-                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                            <h3 class="upload-title">Choose a file or drag it here</h3>
-                            <p class="upload-description">Support for all file types</p>
-                            <button type="button" class="btn btn-outline" id="browseBtn">
-                                <i class="fas fa-folder-open"></i>
-                                Browse Files
-                            </button>
-                        </div>
+                <!-- Dropzone Upload Area -->
+                <div id="myDropzone" class="dropzone">
+                    <div class="dz-message">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary-blue); margin-bottom: 1rem;"></i>
+                        <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Drop files here or click to upload</h3>
+                        <p style="color: var(--text-gray); font-size: 0.9rem;">Support for all file types</p>
                     </div>
+                </div>
 
-                    <!-- File Preview -->
-                    <div class="file-preview" id="filePreview" style="display: none;">
-                        <div class="preview-icon">
-                            <i class="fas fa-file"></i>
-                        </div>
-                        <div class="preview-details">
-                            <p class="preview-name" id="previewFileName">filename.pdf</p>
-                            <p class="preview-size" id="previewFileSize">2.5 MB</p>
-                        </div>
-                        <button type="button" class="preview-remove" id="removeFile">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                <!-- Custom File Name -->
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label class="form-label">
+                        <i class="fas fa-tag"></i>
+                        Custom File Name (Optional)
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="input-icon fas fa-pencil-alt"></i>
+                        <input type="text" id="customFileName" class="form-input"
+                            placeholder="Enter custom name or leave blank">
                     </div>
+                    <small class="input-hint">Leave blank to use the original filename</small>
+                </div>
 
-                    <!-- Custom File Name -->
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-tag"></i>
-                            Custom File Name (Optional)
-                        </label>
-                        <div class="input-wrapper">
-                            <i class="input-icon fas fa-pencil-alt"></i>
-                            <input type="text" id="customFileName" class="form-input"
-                                placeholder="Enter custom name or leave blank">
-                        </div>
-                        <small class="input-hint">Leave blank to use the original filename</small>
-                    </div>
+                <!-- Modal Actions -->
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        <i class="fas fa-times"></i>
+                        Close
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveFileBtn">
+                        <i class="fas fa-save"></i>
+                        Save File
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Modal Actions -->
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" id="cancelBtn">
-                            <i class="fas fa-times"></i>
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-                            <i class="fas fa-upload"></i>
-                            Upload File
-                        </button>
+    <!-- Edit File Name Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-overlay" id="editModalOverlay"></div>
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-edit"></i>
+                    Edit File Name
+                </h2>
+                <button class="modal-close" id="closeEditModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-tag"></i>
+                        File Name
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="input-icon fas fa-pencil-alt"></i>
+                        <input type="text" id="editFileName" class="form-input"
+                            placeholder="Enter new file name">
                     </div>
-                </form>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelEditBtn">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -218,6 +265,7 @@
 
     <?php include 'assets/includes/footer.php'; ?>
 
+    <script src="assets/Js/activity.js"></script>
     <script src="assets/Js/script.js"></script>
 </body>
 

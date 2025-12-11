@@ -44,7 +44,7 @@
         <!-- Footer Bottom -->
         <div class="footer-bottom">
             <p>&copy; <?php echo date('Y'); ?> SaveIt. All rights reserved.</p>
-            <p>Made with <i class="fas fa-heart"></i> for secure file storage</p>
+            <p>Made by <span><</span><span>code</span><span>x</span><span>entric</span><span>></span> for secure file storage</p>
         </div>
     </div>
 </footer>

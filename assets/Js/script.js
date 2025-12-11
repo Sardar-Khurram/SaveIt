@@ -1,10 +1,19 @@
 // ========================================
-// DASHBOARD FUNCTIONALITY
+// DASHBOARD FUNCTIONALITY WITH DROPZONE
 // ========================================
+
+// Disable Dropzone auto-discover
+Dropzone.autoDiscover = false;
 
 // Sample data for demonstration
 let filesData = [];
 let fileIdCounter = 1;
+let myDropzone = null;
+
+// Pagination state
+let currentPage = 1;
+let itemsPerPage = 10;
+let filteredFiles = [];
 
 // Initialize Dashboard
 document.addEventListener('DOMContentLoaded', function() {
@@ -43,80 +52,58 @@ function initDashboard() {
     if (modalOverlay) modalOverlay.addEventListener('click', () => closeModalFunc(addFileModal));
     if (cancelBtn) cancelBtn.addEventListener('click', () => closeModalFunc(addFileModal));
     
-    // File upload handling
-    const fileInput = document.getElementById('fileInput');
-    const browseBtn = document.getElementById('browseBtn');
-    const uploadArea = document.getElementById('uploadArea');
-    const removeFileBtn = document.getElementById('removeFile');
-    const uploadBtn = document.getElementById('uploadBtn');
-    
-    if (!fileInput || !browseBtn || !uploadArea || !uploadBtn) {
-        console.error('File upload elements not found');
-        return;
+    // Save File button
+    const saveFileBtn = document.getElementById('saveFileBtn');
+    if (saveFileBtn) {
+        saveFileBtn.addEventListener('click', () => {
+            if (myDropzone && myDropzone.files.length > 0) {
+                const file = myDropzone.files[0];
+                
+                // Simulate upload progress
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 10;
+                    myDropzone.emit("uploadprogress", file, progress, file.size * progress / 100);
+                    
+                    if (progress >= 100) {
+                        clearInterval(progressInterval);
+                        
+                        // Save the file
+                        handleFileUpload(file);
+                        
+                        // Clean up and close
+                        myDropzone.removeAllFiles();
+                        document.getElementById('customFileName').value = '';
+                        closeModalFunc(addFileModal);
+                    }
+                }, 100);
+            }
+        });
     }
     
-    browseBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        fileInput.click();
-    });
-    
-    uploadArea.addEventListener('click', (e) => {
-        if (e.target === uploadArea || e.target.closest('.upload-content')) {
-            fileInput.click();
-        }
-    });
-    
-    // Drag and drop
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        uploadArea.classList.add('dragover');
-    });
-    
-    uploadArea.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        uploadArea.classList.remove('dragover');
-    });
-    
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        uploadArea.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFileSelect(e.dataTransfer.files[0]);
-        }
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-        }
-    });
-    
-    removeFileBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        fileInput.value = '';
-        document.getElementById('filePreview').style.display = 'none';
-        document.getElementById('uploadArea').style.display = 'block';
-        document.getElementById('customFileName').value = '';
-        uploadBtn.disabled = true;
-    });
-    
-    // Form submission
-    const addFileForm = document.getElementById('addFileForm');
-    addFileForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        handleFileUpload();
-    });
+    // Initialize Dropzone
+    initializeDropzone();
     
     // Search functionality
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', (e) => {
         filterFiles(e.target.value);
     });
+    
+    // Pagination controls
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const entriesSelect = document.getElementById('entriesSelect');
+    
+    if (prevBtn) prevBtn.addEventListener('click', () => changePage(-1));
+    if (nextBtn) nextBtn.addEventListener('click', () => changePage(1));
+    if (entriesSelect) {
+        entriesSelect.addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value);
+            currentPage = 1;
+            renderFilesTable();
+        });
+    }
     
     // Delete modal controls
     const deleteModal = document.getElementById('deleteModal');
@@ -127,50 +114,32 @@ function initDashboard() {
     cancelDeleteBtn.addEventListener('click', () => closeModalFunc(deleteModal));
 }
 
-function handleFileSelect(file) {
-    const filePreview = document.getElementById('filePreview');
-    const uploadArea = document.getElementById('uploadArea');
-    const previewFileName = document.getElementById('previewFileName');
-    const previewFileSize = document.getElementById('previewFileSize');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const previewIcon = filePreview.querySelector('.preview-icon i');
-    
-    // Show preview
-    uploadArea.style.display = 'none';
-    filePreview.style.display = 'flex';
-    
-    // Update preview info
-    previewFileName.textContent = file.name;
-    previewFileSize.textContent = formatFileSize(file.size);
-    
-    // Update icon based on file type
-    const fileType = getFileType(file.name);
-    let iconClass = 'fas fa-file';
-    
-    switch(fileType) {
-        case 'image':
-            iconClass = 'fas fa-file-image';
-            break;
-        case 'document':
-            iconClass = 'fas fa-file-alt';
-            break;
-        case 'video':
-            iconClass = 'fas fa-file-video';
-            break;
-        default:
-            iconClass = 'fas fa-file';
-    }
-    
-    previewIcon.className = iconClass;
-    
-    // Enable upload button
-    uploadBtn.disabled = false;
+function initializeDropzone() {
+    myDropzone = new Dropzone("#myDropzone", {
+        url: "#",
+        autoProcessQueue: false,
+        maxFilesize: 500,
+        addRemoveLinks: true,
+        maxFiles: 1,
+        dictDefaultMessage: "Drop files here or click to upload",
+        acceptedFiles: null,
+        
+        init: function() {
+            this.on("addedfile", function(file) {
+                console.log('File added:', file.name);
+                // File stays visible, no auto-processing
+            });
+            
+            this.on("maxfilesexceeded", function(file) {
+                this.removeAllFiles();
+                this.addFile(file);
+            });
+        }
+    });
 }
 
-function handleFileUpload() {
-    const fileInput = document.getElementById('fileInput');
+function handleFileUpload(file) {
     const customFileName = document.getElementById('customFileName');
-    const file = fileInput.files[0];
     
     if (!file) return;
     
@@ -187,28 +156,25 @@ function handleFileUpload() {
     
     // Add to files array
     filesData.push(fileObj);
+    filteredFiles = [...filesData];
     
     // Save to localStorage
     saveFilesToStorage();
+    
+    // Log activity
+    if (typeof logActivity === 'function') {
+        logActivity('Added', fileName, `File size: ${formatFileSize(file.size)}, Type: ${fileObj.type}`);
+    }
     
     // Update UI
     updateStats();
     renderFilesTable();
     
-    // Close modal and reset form
-    closeModalFunc(document.getElementById('addFileModal'));
-    resetUploadForm();
+    // Reset custom file name
+    customFileName.value = '';
     
     // Show success message (you can add a toast notification here)
     console.log('File uploaded successfully:', fileObj);
-}
-
-function resetUploadForm() {
-    document.getElementById('fileInput').value = '';
-    document.getElementById('customFileName').value = '';
-    document.getElementById('filePreview').style.display = 'none';
-    document.getElementById('uploadArea').style.display = 'block';
-    document.getElementById('uploadBtn').disabled = true;
 }
 
 function updateStats() {
@@ -233,6 +199,7 @@ function renderFilesTable() {
     if (filesData.length === 0) {
         if (filesTable) filesTable.style.display = 'none';
         if (emptyState) emptyState.classList.add('show');
+        hidePagination();
         console.log('Showing empty state');
         return;
     }
@@ -240,14 +207,19 @@ function renderFilesTable() {
     if (filesTable) filesTable.style.display = 'table';
     if (emptyState) emptyState.classList.remove('show');
     
-    tbody.innerHTML = filesData.map((file, index) => `
+    // Get paginated data
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedFiles = filteredFiles.slice(startIndex, endIndex);
+    
+    tbody.innerHTML = paginatedFiles.map((file, index) => `
         <tr>
-            <td data-label="#">${index + 1}</td>
+            <td data-label="#">${startIndex + index + 1}</td>
             <td data-label="File Name">${escapeHtml(file.name)}</td>
             <td data-label="Type">
-                <span class="file-type-badge badge-${file.type}">
-                    ${file.type}
-                </span>
+                <div class="file-type-icon">
+                    ${getFileTypeIcon(file.type)}
+                </div>
             </td>
             <td data-label="Size">${formatFileSize(file.size)}</td>
             <td data-label="Date Added">${formatDate(file.dateAdded)}</td>
@@ -266,20 +238,19 @@ function renderFilesTable() {
             </td>
         </tr>
     `).join('');
+    
+    updatePagination();
 }
 
 function filterFiles(searchTerm) {
-    const rows = document.querySelectorAll('#filesTableBody tr');
     const term = searchTerm.toLowerCase();
     
-    rows.forEach(row => {
-        const fileName = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-        if (fileName.includes(term)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+    filteredFiles = filesData.filter(file => 
+        file.name.toLowerCase().includes(term)
+    );
+    
+    currentPage = 1;
+    renderFilesTable();
 }
 
 function confirmDelete(fileId, fileName) {
@@ -298,20 +269,71 @@ function confirmDelete(fileId, fileName) {
 }
 
 function deleteFile(fileId) {
+    const file = filesData.find(f => f.id === fileId);
+    const fileName = file ? file.name : 'Unknown file';
+    
     filesData = filesData.filter(f => f.id !== fileId);
+    filteredFiles = [...filesData];
     saveFilesToStorage();
+    currentPage = 1;
+    
+    // Log activity
+    if (typeof logActivity === 'function' && file) {
+        logActivity('Deleted', fileName, `File type: ${file.type}, Size: ${formatFileSize(file.size)}`);
+    }
+    
     updateStats();
     renderFilesTable();
 }
 
 function editFile(fileId) {
-    // You can implement edit functionality here
-    alert('Edit functionality can be implemented based on your needs');
+    const file = filesData.find(f => f.id === fileId);
+    if (!file) return;
+    
+    const editModal = document.getElementById('editModal');
+    const editFileName = document.getElementById('editFileName');
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const closeEditModal = document.getElementById('closeEditModal');
+    const editModalOverlay = document.getElementById('editModalOverlay');
+    
+    // Populate current file name
+    editFileName.value = file.name;
+    
+    // Save edit handler
+    saveEditBtn.onclick = () => {
+        const newName = editFileName.value.trim();
+        if (newName && newName !== file.name) {
+            const oldName = file.name;
+            file.name = newName;
+            saveFilesToStorage();
+            
+            // Log activity
+            if (typeof logActivity === 'function') {
+                logActivity('Edited', newName, `Renamed from "${oldName}"`);
+            }
+            
+            updateStats();
+            renderFilesTable();
+        }
+        closeModalFunc(editModal);
+    };
+    
+    // Cancel handlers
+    if (cancelEditBtn) cancelEditBtn.onclick = () => closeModalFunc(editModal);
+    if (closeEditModal) closeEditModal.onclick = () => closeModalFunc(editModal);
+    if (editModalOverlay) editModalOverlay.onclick = () => closeModalFunc(editModal);
+    
+    openModal(editModal);
 }
 
 function downloadFile(fileId) {
     const file = filesData.find(f => f.id === fileId);
     if (file) {
+        // Log activity
+        if (typeof logActivity === 'function') {
+            logActivity('Downloaded', file.name, `File type: ${file.type}, Size: ${formatFileSize(file.size)}`);
+        }
         alert(`Download functionality for: ${file.name}\nThis would trigger an actual download in production.`);
     }
 }
@@ -326,6 +348,16 @@ function getFileType(fileName) {
     if (docExts.includes(ext)) return 'document';
     if (videoExts.includes(ext)) return 'video';
     return 'other';
+}
+
+function getFileTypeIcon(type) {
+    const icons = {
+        'image': '<i class="fas fa-file-image" style="color: #ec4899; font-size: 1.5rem;" title="Image"></i>',
+        'document': '<i class="fas fa-file-alt" style="color: #3b82f6; font-size: 1.5rem;" title="Document"></i>',
+        'video': '<i class="fas fa-file-video" style="color: #8b5cf6; font-size: 1.5rem;" title="Video"></i>',
+        'other': '<i class="fas fa-file" style="color: #6b7280; font-size: 1.5rem;" title="Other"></i>'
+    };
+    return icons[type] || icons['other'];
 }
 
 function formatFileSize(bytes) {
@@ -390,9 +422,94 @@ function loadFilesFromStorage() {
     
     if (saved) {
         filesData = JSON.parse(saved);
+        filteredFiles = [...filesData];
     }
     if (counter) {
         fileIdCounter = parseInt(counter);
+    }
+}
+
+// Pagination Functions
+function updatePagination() {
+    const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
+    const paginationWrapper = document.getElementById('paginationWrapper');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const paginationNumbers = document.getElementById('paginationNumbers');
+    const showingStart = document.getElementById('showingStart');
+    const showingEnd = document.getElementById('showingEnd');
+    const totalEntries = document.getElementById('totalEntries');
+    
+    if (!paginationWrapper) return;
+    
+    if (filteredFiles.length === 0) {
+        paginationWrapper.style.display = 'none';
+        return;
+    }
+    
+    paginationWrapper.style.display = 'flex';
+    
+    // Update info
+    const start = (currentPage - 1) * itemsPerPage + 1;
+    const end = Math.min(currentPage * itemsPerPage, filteredFiles.length);
+    showingStart.textContent = start;
+    showingEnd.textContent = end;
+    totalEntries.textContent = filteredFiles.length;
+    
+    // Update buttons
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+    
+    // Generate page numbers
+    paginationNumbers.innerHTML = generatePageNumbers(currentPage, totalPages);
+}
+
+function generatePageNumbers(current, total) {
+    let html = '';
+    const maxVisible = 5;
+    
+    if (total <= maxVisible) {
+        for (let i = 1; i <= total; i++) {
+            html += `<button class="page-number ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+    } else {
+        html += `<button class="page-number ${1 === current ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
+        
+        if (current > 3) {
+            html += '<span class="page-ellipsis">...</span>';
+        }
+        
+        let start = Math.max(2, current - 1);
+        let end = Math.min(total - 1, current + 1);
+        
+        for (let i = start; i <= end; i++) {
+            html += `<button class="page-number ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        
+        if (current < total - 2) {
+            html += '<span class="page-ellipsis">...</span>';
+        }
+        
+        html += `<button class="page-number ${total === current ? 'active' : ''}" onclick="goToPage(${total})">${total}</button>`;
+    }
+    
+    return html;
+}
+
+function changePage(direction) {
+    currentPage += direction;
+    renderFilesTable();
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderFilesTable();
+}
+
+function hidePagination() {
+    const paginationWrapper = document.getElementById('paginationWrapper');
+    if (paginationWrapper) {
+        paginationWrapper.style.display = 'none';
     }
 }
 

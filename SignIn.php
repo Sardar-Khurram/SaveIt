@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="assets/CSS/style.css">
 </head>
 
-<body>
+<body class="auth-page">
     <!-- Authentication Container -->
     <div class="auth-container">
         <!-- Left Side - Content Section -->
